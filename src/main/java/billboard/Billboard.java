@@ -2,9 +2,9 @@ package billboard;
 
 import javax.swing.*;
 import java.awt.*;
-import java.util.ArrayList;
-import java.util.LinkedList;
+import java.util.*;
 import java.util.List;
+import java.util.Timer;
 
 public class Billboard extends JPanel implements IBillboard {
 
@@ -14,13 +14,14 @@ public class Billboard extends JPanel implements IBillboard {
     private static final Color ON_COLOR_HOVER = Color.ORANGE;
 
     private int currentAdd = -1;
-    private int TIME = 5;
+    private int TIME = 5000;
     private static final int numberOfAds = 6;
     private static final Dimension BILLBOARD_DIMENSION = new Dimension(500, 400);
 
     private List<add> addsList;
     private List<BillboardChangedEventListener> billboardChangedEventListeners;
-    JTextPane textPane;
+    public JTextPane textPane;
+    Thread t;
 
     public Billboard(){
         super();
@@ -38,12 +39,29 @@ public class Billboard extends JPanel implements IBillboard {
 
         textPane.setText(addsList.get(0).getText());
         currentAdd = 0;
-        
+
         billboardChangedEventListeners = new LinkedList<BillboardChangedEventListener>();
         this.setBorder(BorderFactory.createLineBorder(Color.BLACK));
         this.setPreferredSize(BILLBOARD_DIMENSION);
         this.setBackground(OFF_COLOR);
         this.add(textPane);
+    }
+
+    public TimerTask changeAd() {
+
+        TimerTask timerTask = new TimerTask() {
+
+            @Override
+            public void run() {
+                Random rand = new Random();
+                int a = rand.nextInt(numberOfAds);
+                textPane.setText(addsList.get(a).getText());
+                //System.out.println(addsList.get(a).getText());
+            }
+        };
+
+        return  timerTask;
+
     }
 
     public void nextAdd() {
@@ -59,7 +77,6 @@ public class Billboard extends JPanel implements IBillboard {
     public void changeTime(int time) {
         this.TIME = time;
         generateLightChangedEvent(currentAdd,true, false,true);
-
     }
 
     public void setAddText(String text) {
@@ -75,9 +92,32 @@ public class Billboard extends JPanel implements IBillboard {
         Color currentColor = getBackground();
         if(currentColor.equals(OFF_COLOR)){
             setBackground(ON_COLOR);
-            textPane.setText(addsList.get(0).getText());
+            currentAdd = 0;
+            textPane.setText(addsList.get(currentAdd).getText());
+            currentAdd++;
             generateLightChangedEvent(currentAdd,true, false,false);
         }
+
+        t = new Thread(){
+            public void run() {
+                while (true) {
+                    Random rand = new Random();
+                    int a = rand.nextInt(numberOfAds);
+                    System.out.println("Before wait");
+                    textPane.setText(addsList.get(a).getText());
+                    generateLightChangedEvent(currentAdd, true, true, true);
+                    revalidate();
+                    synchronized (this){
+                        try {
+                            this.wait(TIME);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }
+            }
+        };
+        t.start();
     }
 
     public void turnOfBillboard() {
@@ -86,6 +126,11 @@ public class Billboard extends JPanel implements IBillboard {
             setBackground(OFF_COLOR);
             textPane.setText(null);
             generateLightChangedEvent(currentAdd,false, false,false);
+        }
+        try {
+            t.join();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
         }
     }
 
@@ -99,6 +144,5 @@ public class Billboard extends JPanel implements IBillboard {
             listener.onBillboardChangedEvent(event);
         }
         }
-
 
 }
